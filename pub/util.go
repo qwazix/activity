@@ -8,12 +8,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/go-fed/activity/streams"
-	"github.com/go-fed/activity/streams/vocab"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/go-fed/activity/streams"
+	"github.com/go-fed/activity/streams/vocab"
 )
 
 var (
@@ -80,6 +81,11 @@ func isActivityPubPost(r *http.Request) bool {
 // ActivityStreams content type header
 func isActivityPubGet(r *http.Request) bool {
 	return r.Method == "GET" && headerIsActivityPubMediaType(r.Header.Get(acceptHeader))
+}
+
+// IsActivityPubRequest checks if it's either a valid ActivityPub GET or POST
+func IsActivityPubRequest(r *http.Request) bool {
+	return isActivityPubGet(r) || isActivityPubPost(r)
 }
 
 // dedupeOrderedItems deduplicates the 'orderedItems' within an ordered

@@ -120,6 +120,10 @@ func (h HttpSigTransport) Dereference(c context.Context, iri *url.URL) ([]byte, 
 	req.Header.Add("Accept-Charset", "utf-8")
 	req.Header.Add("Date", h.clock.Now().UTC().Format("Mon, 02 Jan 2006 15:04:05")+" GMT")
 	req.Header.Add("User-Agent", fmt.Sprintf("%s %s", h.appAgent, h.gofedAgent))
+	req.Header.Add("host", "")
+	req.Header.Add("digest", "")
+	req.Header.Add("Accept", "application/activity+json")
+
 	h.getSignerMu.Lock()
 	err = h.getSigner.SignRequest(h.privKey, h.pubKeyId, req)
 	h.getSignerMu.Unlock()
@@ -151,6 +155,7 @@ func (h HttpSigTransport) Deliver(c context.Context, b []byte, to *url.URL) erro
 	req.Header.Add("Accept-Charset", "utf-8")
 	req.Header.Add("Date", h.clock.Now().UTC().Format("Mon, 02 Jan 2006 15:04:05")+" GMT")
 	req.Header.Add("User-Agent", fmt.Sprintf("%s %s", h.appAgent, h.gofedAgent))
+	req.Header.Add("host", "")
 	sum := sha256.Sum256(b)
 	req.Header.Add("Digest",
 		fmt.Sprintf("SHA-256=%s",
