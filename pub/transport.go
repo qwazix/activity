@@ -138,6 +138,10 @@ func (h HttpSigTransport) Dereference(c context.Context, iri *url.URL) ([]byte, 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("GET request to %s failed (%d): %s", iri.String(), resp.StatusCode, resp.Status)
 	}
+
+	// fmt.Println("GET")
+	fmt.Println("GET request to %s succeeded (%d): %s", iri.String(), resp.StatusCode, resp.Status)
+
 	return ioutil.ReadAll(resp.Body)
 }
 
@@ -156,6 +160,7 @@ func (h HttpSigTransport) Deliver(c context.Context, b []byte, to *url.URL) erro
 	req.Header.Add("Date", h.clock.Now().UTC().Format("Mon, 02 Jan 2006 15:04:05")+" GMT")
 	req.Header.Add("User-Agent", fmt.Sprintf("%s %s", h.appAgent, h.gofedAgent))
 	req.Header.Add("host", "")
+	req.Header.Add("Accept", "application/activity+json")
 	sum := sha256.Sum256(b)
 	req.Header.Add("Digest",
 		fmt.Sprintf("SHA-256=%s",
@@ -172,8 +177,13 @@ func (h HttpSigTransport) Deliver(c context.Context, b []byte, to *url.URL) erro
 	}
 	defer resp.Body.Close()
 	if !isSuccess(resp.StatusCode) {
-		return fmt.Errorf("POST request to %s failed (%d): %s", to.String(), resp.StatusCode, resp.Status)
+		responseData,_ := ioutil.ReadAll(resp.Body)
+		responseText := string(responseData)
+		return fmt.Errorf("POST request to %s failed (%d): %s", to.String(), resp.StatusCode, resp.Status, responseText, string(byteCopy), req.Header)
 	}
+	// fmt.Println("POST request to %s succeeded (%d): %s", to.String(), resp.StatusCode, resp.Status)
+	fmt.Println("POST")
+
 	return nil
 }
 
