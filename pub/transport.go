@@ -7,12 +7,13 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
-	"github.com/go-fed/httpsig"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
 	"sync"
+
+	"github.com/go-fed/httpsig"
 )
 
 const (
@@ -116,13 +117,13 @@ func (h HttpSigTransport) Dereference(c context.Context, iri *url.URL) ([]byte, 
 		return nil, err
 	}
 	req.WithContext(c)
-	req.Header.Add(acceptHeader, acceptHeaderValue)
+	// req.Header.Add(acceptHeader, acceptHeaderValue)
 	req.Header.Add("Accept-Charset", "utf-8")
 	req.Header.Add("Date", h.clock.Now().UTC().Format("Mon, 02 Jan 2006 15:04:05")+" GMT")
 	req.Header.Add("User-Agent", fmt.Sprintf("%s %s", h.appAgent, h.gofedAgent))
-	req.Header.Add("host", "")
+	req.Header.Add("host", iri.Host)
 	req.Header.Add("digest", "")
-	req.Header.Add("Accept", "application/activity+json")
+	req.Header.Add("Accept", "application/activity+json; profile=\"https://www.w3.org/ns/activitystreams\"")
 
 	h.getSignerMu.Lock()
 	err = h.getSigner.SignRequest(h.privKey, h.pubKeyId, req)
@@ -140,9 +141,12 @@ func (h HttpSigTransport) Dereference(c context.Context, iri *url.URL) ([]byte, 
 	}
 
 	// fmt.Println("GET")
-	fmt.Println("GET request to %s succeeded (%d): %s", iri.String(), resp.StatusCode, resp.Status)
+	responseData, _ := ioutil.ReadAll(resp.Body)
+	responseText := string(responseData)
+	fmt.Println("GET request succeeded:", iri.String(), req.Header, resp.StatusCode, resp.Status, responseText)
 
-	return ioutil.ReadAll(resp.Body)
+	return responseData, nil
+	// return ioutil.ReadAll(resp.Body)
 }
 
 // Deliver sends a POST request with an HTTP Signature.
@@ -155,11 +159,11 @@ func (h HttpSigTransport) Deliver(c context.Context, b []byte, to *url.URL) erro
 		return err
 	}
 	req.WithContext(c)
-	req.Header.Add(contentTypeHeader, contentTypeHeaderValue)
+	// req.Header.Add(contentTypeHeader, contentTypeHeaderValue)
 	req.Header.Add("Accept-Charset", "utf-8")
 	req.Header.Add("Date", h.clock.Now().UTC().Format("Mon, 02 Jan 2006 15:04:05")+" GMT")
 	req.Header.Add("User-Agent", fmt.Sprintf("%s %s", h.appAgent, h.gofedAgent))
-	req.Header.Add("host", "")
+	req.Header.Add("Host", to.Host)
 	req.Header.Add("Accept", "application/activity+json")
 	sum := sha256.Sum256(b)
 	req.Header.Add("Digest",
@@ -177,19 +181,21 @@ func (h HttpSigTransport) Deliver(c context.Context, b []byte, to *url.URL) erro
 	}
 	defer resp.Body.Close()
 	if !isSuccess(resp.StatusCode) {
-		responseData,_ := ioutil.ReadAll(resp.Body)
+		responseData, _ := ioutil.ReadAll(resp.Body)
 		responseText := string(responseData)
 		return fmt.Errorf("POST request to %s failed (%d): %s", to.String(), resp.StatusCode, resp.Status, responseText, string(byteCopy), req.Header)
 	}
-	// fmt.Println("POST request to %s succeeded (%d): %s", to.String(), resp.StatusCode, resp.Status)
-	fmt.Println("POST")
-
+	// responseData, _ := ioutil.ReadAll(resp.Body)
+	// responseText := string(responseData)
+	// fmt.Println("POST request to %s succeeded (%d): %s", to.String(), resp.StatusCode, resp.Status, responseText, string(byteCopy), req.Header)
+	// fmt.Println("POST")
 	return nil
 }
 
 // BatchDeliver sends concurrent POST requests. Returns an error if any of the
 // requests had an error.
 func (h HttpSigTransport) BatchDeliver(c context.Context, b []byte, recipients []*url.URL) error {
+	fmt.Println(recipients)
 	var wg sync.WaitGroup
 	errCh := make(chan error, len(recipients))
 	for _, recipient := range recipients {
